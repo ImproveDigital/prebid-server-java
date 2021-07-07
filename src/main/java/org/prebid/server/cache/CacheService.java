@@ -64,6 +64,7 @@ public class CacheService {
     private static final String BID_WURL_ATTRIBUTE = "wurl";
 
     private final CacheTtl mediaTypeCacheTtl;
+    private final Boolean setTtlAsTtlseconds;
     private final HttpClient httpClient;
     private final URL endpointUrl;
     private final String cachedAssetUrlTemplate;
@@ -74,6 +75,7 @@ public class CacheService {
     private final JacksonMapper mapper;
 
     public CacheService(CacheTtl mediaTypeCacheTtl,
+                        Boolean setTtlAsTtlseconds,
                         HttpClient httpClient,
                         URL endpointUrl,
                         String cachedAssetUrlTemplate,
@@ -84,6 +86,7 @@ public class CacheService {
                         JacksonMapper mapper) {
 
         this.mediaTypeCacheTtl = Objects.requireNonNull(mediaTypeCacheTtl);
+        this.setTtlAsTtlseconds = Objects.requireNonNull(setTtlAsTtlseconds);
         this.httpClient = Objects.requireNonNull(httpClient);
         this.endpointUrl = Objects.requireNonNull(endpointUrl);
         this.cachedAssetUrlTemplate = Objects.requireNonNull(cachedAssetUrlTemplate);
@@ -92,6 +95,19 @@ public class CacheService {
         this.metrics = Objects.requireNonNull(metrics);
         this.clock = Objects.requireNonNull(clock);
         this.mapper = Objects.requireNonNull(mapper);
+    }
+
+    public CacheService(CacheTtl mediaTypeCacheTtl,
+                        HttpClient httpClient,
+                        URL endpointUrl,
+                        String cachedAssetUrlTemplate,
+                        VastModifier vastModifier,
+                        EventsService eventsService,
+                        Metrics metrics,
+                        Clock clock,
+                        JacksonMapper mapper) {
+        this(mediaTypeCacheTtl, false, httpClient, endpointUrl, cachedAssetUrlTemplate, vastModifier,
+                eventsService, metrics, clock, mapper);
     }
 
     public String getEndpointHost() {
@@ -391,11 +407,20 @@ public class CacheService {
             bidObjectNode.put(BID_WURL_ATTRIBUTE, eventUrl);
         }
 
-        final PutObject payload = PutObject.builder()
-                .type("json")
-                .value(bidObjectNode)
-                .expiry(cacheBid.getTtl())
-                .build();
+        final PutObject payload;
+        if (this.setTtlAsTtlseconds) {
+            payload = PutObject.builder()
+                    .type("json")
+                    .value(bidObjectNode)
+                    .ttlseconds(cacheBid.getTtl())
+                    .build();
+        } else {
+            payload = PutObject.builder()
+                    .type("json")
+                    .value(bidObjectNode)
+                    .expiry(cacheBid.getTtl())
+                    .build();
+        }
 
         return CachedCreative.of(payload, creativeSizeFromAdm(bid.getAdm()));
     }
@@ -408,11 +433,20 @@ public class CacheService {
         final com.iab.openrtb.response.Bid bid = bidInfo.getBid();
         final String vastXml = bid.getAdm();
 
-        final PutObject payload = PutObject.builder()
-                .type("xml")
-                .value(vastXml != null ? new TextNode(vastXml) : null)
-                .expiry(cacheBid.getTtl())
-                .build();
+        final PutObject payload;
+        if (this.setTtlAsTtlseconds) {
+            payload = PutObject.builder()
+                    .type("xml")
+                    .value(vastXml != null ? new TextNode(vastXml) : null)
+                    .ttlseconds(cacheBid.getTtl())
+                    .build();
+        } else {
+            payload = PutObject.builder()
+                    .type("xml")
+                    .value(vastXml != null ? new TextNode(vastXml) : null)
+                    .expiry(cacheBid.getTtl())
+                    .build();
+        }
 
         return CachedCreative.of(payload, creativeSizeFromTextNode(payload.getValue()));
     }

@@ -96,6 +96,7 @@ public class ServiceConfiguration {
             @Value("${cache.query}") String query,
             @Value("${cache.banner-ttl-seconds:#{null}}") Integer bannerCacheTtl,
             @Value("${cache.video-ttl-seconds:#{null}}") Integer videoCacheTtl,
+            @Value("${cache.set-ttl-as-ttlseconds:#{false}}") Boolean setTtlAsTtlseconds,
             VastModifier vastModifier,
             EventsService eventsService,
             HttpClient httpClient,
@@ -105,6 +106,7 @@ public class ServiceConfiguration {
 
         return new CacheService(
                 CacheTtl.of(bannerCacheTtl, videoCacheTtl),
+                setTtlAsTtlseconds,
                 httpClient,
                 CacheService.getCacheEndpointUrl(scheme, host, path),
                 CacheService.getCachedAssetUrlTemplate(scheme, host, path, query),
